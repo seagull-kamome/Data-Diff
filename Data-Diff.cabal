@@ -1,0 +1,21 @@
+Name:               Data-Diff
+Version:            0.1
+Author:             Hiroki Hattori
+Maintainer:         Hiroki Hattori (seagull) <seagull.kamome@gmail.com>
+License:            BSD3
+License-file:       COPYING
+Homepage:           http://www.mitsuki.no-ip.com/~seagull/cgit/lang/haskell/Data-Diff
+Synopsis:           Collection of diff algorithm
+Description:        Collection of diff algorithm
+Category:           Data
+Tested-With:        GHC == 6.8.2
+Cabal-Version:      >=1.2
+
+Extra-source-files:
+                    tests/runtest.hs
+
+Library
+  Build-depends:      base, mtl>=1.1
+  Ghc-options:        -Wall
+  exposed-modules:    Data.Diff Data.Diff.Algorithm.ONM Data.Diff.Algorithm.ONP
+  Other-Modules:      
