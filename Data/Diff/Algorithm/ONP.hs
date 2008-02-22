@@ -18,7 +18,6 @@ module Data.Diff.Algorithm.ONP
 
 import Control.Monad.Fix (fix)
 import Data.Diff
-import Debug.Trace
 
 
 diff :: Eq a => DiffAlgorithm a
@@ -42,29 +41,28 @@ genericDiff cmp oldlist newlist = let ((_, _,  _, path): _, _) = onp (fp_ab_0, [
       fp_ab_0 = reverse $ fix (\f (n, fp) -> fp:if n == 0 then [] else f ((n - 1), newfp_ins fp) ) (yn - xn {-delta-}, fp_0_0)
           where fp_0_0 = let (s, xs', ys') = snake xs ys in (s, xs', ys', addCommonPath s [])
       --
-      newfp_ins (s, xs,     (_:ys), path) = let (n, x, y) = snake xs ys in (n + s + 1, x, y, addCommonPath n $ insopr 1 path)
-      newfp_del (s, (_:xs), ys,     path) = let (n, x, y) = snake xs ys in (n + s,     x, y, addCommonPath n $ delopr 1 path)
+      newfp_ins (s, xs',     (_:ys'), path) = let (n, x, y) = snake xs' ys' in (n + s + 1, x, y, addCommonPath n $ insopr 1 path)
+      newfp_del (s, (_:xs'), ys',     path) = let (n, x, y) = snake xs' ys' in (n + s,     x, y, addCommonPath n $ delopr 1 path)
       --
       -- O(NP)本体
       --
-      onp fp@(fp_ab@(fp_a@(_, _, s_y, _):_), fp_c)
-          | null s_y  = fp
+      onp fps@(fp_ab@(fp_a@(_, _, s_y, _):_), fp_c)
+          | null s_y  = fps
           | otherwise = onp (newfp_a:newfp_b, newfp_c)
           where
             newfp_a = newfp (head newfp_b) (head newfp_c)    -- k == delta
             newfp_b = newfp_b' fp_ab                         -- k < delta
                 where
-                  newfp_b' (fp@(_, [], _, _):[])  = [] -- xがxnを越えるので刈る
+                  newfp_b' ((_, [], _, _):[])  = [] -- xがxnを越えるので刈る
                   newfp_b' (fp:[])  = [newfp_del fp]
-                  newfp_b' (fp:fps) = let newfps = newfp_b' fps in newfp (head newfps) fp : newfps
+                  newfp_b' (fp:fps') = let newfps = newfp_b' fps' in newfp (head newfps) fp : newfps
             newfp_c = newfp_c' (fp_a:fp_c)                   -- k > delta
                 where
-                  newfp_b' (fp@(_, _, [], _):[])  = [] -- yがynを越えるので刈る
+                  newfp_c' ((_, _, [], _):[])  = [] -- yがynを越えるので刈る
                   newfp_c' (fp:[])  = [newfp_ins fp]
-                  newfp_c' (fp:fps) = let newfps = newfp_c' fps in newfp fp (head newfps) : newfps
+                  newfp_c' (fp:fps') = let newfps = newfp_c' fps' in newfp fp (head newfps) : newfps
             -- 
             newfp fp_l@(s_l, _, _, _) fp_r@(s_r, _, _, _)
                 | s_l + 1 >= s_r = newfp_ins fp_l
                 | otherwise      = newfp_del fp_r
-
 

@@ -24,7 +24,7 @@ genericDiff cmp oldlist newlist = snd $ onm oldlist newlist
       onm' [] [] = (0, [])
       onm' [] ys = let yn = length ys in (yn, addInsertPath yn [])
       onm' xs [] = let xn = length xs in (xn, addDeletePath xn [])
-      onm' xs@(x:xs') ys@(y:ys') = let (c1, p1) = onm xs ys'
+      onm' xs@(_:xs') ys@(_:ys') = let (c1, p1) = onm xs ys'
                                        (c2, p2) = onm xs' ys
                                    in if c1 < c2
                                       then (c1 + 1, addInsertPath 1 p1)

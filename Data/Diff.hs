@@ -18,7 +18,7 @@ module Data.Diff
      path2lcs, genericLcs,
      --
      inverseNode, inverseEditPath,
-     path2hunk, hunkToNew, hunkToNewLength, hunkToOld, hunkToOldLength,
+     path2hunk, hunkNewList, hunkNewLength, hunkOldList, hunkOldLength,
      --
      inverseHunk, inversePatch,
      path2patch,
@@ -160,20 +160,20 @@ path2hunk xs ys (Right cmn:path) = Right (cmn, xs') : path2hunk xs'' (drop cmn y
 
 
 -- | Hunkのリストから旧リストを取り出す
-hunkToOld :: [Hunk a] -> [a]
-hunkToOld = concatMap . either (snd . fst) snd
+hunkOldList :: [Hunk a] -> [a]
+hunkOldList = concatMap (either (snd . fst) snd)
 
 -- | Hunkのリストから新リストを取り出す
-hunkTonew :: [Hunk a] -> [a]
-hunkTonew = concatMap . either (snd . snd) snd
+hunkNewList :: [Hunk a] -> [a]
+hunkNewList = concatMap (either (snd . snd) snd)
 
 -- | Hunk のリストから旧リストの長さを算出する
-hunkToOldLength :: [Hunk a] -> Int
-hunkToOldLength = sum . map (either (fst . fst) fst)
+hunkOldLength :: [Hunk a] -> Int
+hunkOldLength = sum . map (either (fst . fst) fst)
 
 -- | Hunk のリストから新リストの長さを算出する
-hunkToNewLength :: [Hunk a] -> Int
-hunkToNewLength = sum . map (either (fst . snd) fst)
+hunkNewLength :: [Hunk a] -> Int
+hunkNewLength = sum . map (either (fst . snd) fst)
 
 
 
@@ -213,7 +213,7 @@ path2patch Nothing oldlist newlist paths = f 1 1 oldlist newlist paths
               (ys', ys'') = splitAt ins ys
           in (n, m, Left ((del, xs'), (ins, ys'))) : f (n + del) (m + ins) xs'' ys'' paths'
 
-
+{-
 path2patch (Just cl) oldlist newlist path = f0 x0 path 1 oldlist 1 newlist
     where
       isLeft = either (const True) (const False)
@@ -228,5 +228,4 @@ path2patch (Just cl) oldlist newlist path = f0 x0 path 1 oldlist 1 newlist
             (xs', ys'') = span isRight ys'
             hnk = 
 
-
-
+-}
