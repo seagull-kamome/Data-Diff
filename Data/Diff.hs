@@ -230,7 +230,7 @@ pathToDiff (Just cl) oldlist newlist path = f0 oldlist newlist $ normalizeEditPa
       f0 xs ys zs@(Left _:_) = f1 (\ds -> [Diff 0 0 ds]) xs 0 ys 0 zs
       f0 xs ys (Right c:zs) = f1 (\ds -> [Diff skip skip (Right (drop (c - cl) xs') : ds)] ) xs'' c (drop c ys) c zs
           where (xs', xs'') = splitAt c xs
-                skip = c - cl
+                skip = max 0 $ c - cl
       f1 prefix _ _ _ _ [] = prefix []
       f1 prefix xs xn ys yn (Left (d, i) : zs) = f1 (prefix . (:) (Left (xs', ys'))) xs'' (xn + d) ys'' (yn + i) zs
           where
