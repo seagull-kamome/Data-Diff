@@ -1,4 +1,4 @@
-{-# GHC_OPTIONS -XStandaloneDeriving #-}
+{-# OPTIONS_GHC -XStandaloneDeriving #-}
 --
 -- Data/Diff.hs - Base module for diff algorithms
 --
@@ -8,7 +8,7 @@
 module Data.Diff
     (
      Node, EditPath, PathOpr,
-     Diff, Patch (..),
+     Hunk, Diff (..),
      DiffAlgorithm, GenericDiffAlgorithm,
      --
      addInsertPath, addDeletePath, addCommonPath,
@@ -18,11 +18,11 @@ module Data.Diff
      --
      path2lcs, genericLcs,
      --
-     inverseNode, inverseEditPath,
+     inverseNode, inverseEditPath, normalizeEditPath,
      --
-     inverseDiff, pathToDiff, diffNewList, diffNewLength, diffOldList, diffOldLength,
+     inverseHunk, pathToHunk, hunkNewList, hunkNewLength, hunkOldList, hunkOldLength,
      --
-     inversePatch, pathToPatch,
+     inverseDiff, pathToDiff,
     ) where
 --
 
@@ -42,6 +42,13 @@ inverseNode x = x
 
 inverseEditPath :: EditPath -> EditPath
 inverseEditPath = map inverseNode
+
+normalizeEditPath :: EditPath -> EditPath
+normalizeEditPath [] = []
+normalizeEditPath xs@(_:[]) = xs
+normalizeEditPath (Left (d1, i1):Left (d2, i2):xs) = normalizeEditPath $ Left (d1 + d2, i1 + i2) : xs
+normalizeEditPath (Right c1:Right c2:xs) = normalizeEditPath $ Right (c1 + c2) : xs
+normalizeEditPath (x:xs) = x : normalizeEditPath xs
 
 
 addInsertPath :: PathOpr
@@ -134,120 +141,106 @@ genericLcs f x y = path2lcs x y $ f x y
 
 
 --
--- * Diff操作
+-- * Hunk操作
 --
-type Diff a = Either ([a], [a]) [a]
+type Hunk a = Either ([a], [a]) [a]
 
 
--- | DIff を逆転する
-inverseDiff :: Diff a -> Diff a
-inverseDiff (Left (n, m)) = Left (m, n)
-inverseDiff x = x
+-- | Hunk を逆転する
+inverseHunk :: Hunk a -> Hunk a
+inverseHunk (Left (n, m)) = Left (m, n)
+inverseHunk x = x
 
 
 -- | 編集パスをDiffのリストにする
-pathToDiff :: [a]        -- ^ 旧リスト
+pathToHunk :: [a]        -- ^ 旧リスト
            -> [a]        -- ^ 新リスト
            -> EditPath   -- ^ 編集パス
-           -> [Diff a]  -- ^ 変形した結果 Chunk のリスト
-pathToDiff _ _ [] = []
-pathToDiff xs ys (Left (del, ins):path) = Left (xs', ys') : pathToDiff xs'' ys'' path
+           -> [Hunk a]  -- ^ 変形した結果
+pathToHunk _ _ [] = []
+pathToHunk xs ys (Left (del, ins):path) = Left (xs', ys') : pathToHunk xs'' ys'' path
     where (xs', xs'') = splitAt del xs 
           (ys', ys'') = splitAt ins ys
-pathToDiff xs ys (Right cmn:path) = Right xs' : pathToDiff xs'' (drop cmn ys) path
+pathToHunk xs ys (Right cmn:path) = Right xs' : pathToHunk xs'' (drop cmn ys) path
     where (xs', xs'') = splitAt cmn xs 
 
 
 
 -- | Diffのリストから旧リストを取り出す
-diffOldList :: [Diff a] -> [a]
-diffOldList = concatMap (either fst id)
+hunkOldList :: [Hunk a] -> [a]
+hunkOldList = concatMap (either fst id)
 
 -- | Diffのリストから新リストを取り出す
-diffNewList :: [Diff a] -> [a]
-diffNewList = concatMap (either snd id)
+hunkNewList :: [Hunk a] -> [a]
+hunkNewList = concatMap (either snd id)
 
 -- | Diffのリストから旧リストの長さを算出する
-diffOldLength :: [Diff a] -> Int
-diffOldLength = sum . map (length . either fst id)
+hunkOldLength :: [Hunk a] -> Int
+hunkOldLength = sum . map (length . either fst id)
 
 -- | Diffのリストから新リストの長さを算出する
-diffNewLength :: [Diff a] -> Int
-diffNewLength = sum . map (length . either snd id)
+hunkNewLength :: [Hunk a] -> Int
+hunkNewLength = sum . map (length . either snd id)
 
 
 
 
 
 --
--- * パッチ操作
+-- * Diff操作
 --
 
--- | パッチ型
-data Patch a = Patch {
-      patchOldIndex  :: Int,
-      patchNewIndex  :: Int,
-      patchOldLength :: Int,
-      patchNewLength :: Int,
-      patchDiff      :: [Diff a]
+-- | Diff型
+data Diff a = Diff {
+      diffOldIndex  :: Int,
+      diffNewIndex  :: Int,
+      diffDiff      :: [Hunk a]
     }
 
-deriving instance Show a => Show (Patch a)
+deriving instance Show a => Show (Diff a)
 
 
--- | パッチを逆転する
-inversePatch :: Patch a -> Patch a
-inversePatch (Patch x1 x2 x3 x4 x5) = Patch x2 x1 x4 x3 $ map inverseDiff x5
+-- | Diffを逆転する
+inverseDiff :: Diff a -> Diff a
+inverseDiff (Diff x1 x2 x3) = Diff x2 x1 $ map inverseHunk x3
 
 
 
 
--- | 編集パスをパッチにする
-pathToPatch :: Maybe Int   -- ^ 編集部分の前後に含める共通部分の個数 Nothing ならすべて含める
-            -> [a]         -- ^ 旧リスト
-            -> [a]         -- ^ 新リスト
-            -> EditPath    -- ^ 編集パス
-            -> [Patch a]  -- ^ 生成されたパッチ
-pathToPatch Nothing oldlist newlist paths = [Patch 1 1 (pathOldLength paths) (pathNewLength paths) $ f oldlist newlist paths ]
+-- | 編集パスをDiffにする
+pathToDiff :: Maybe Int   -- ^ 編集部分の前後に含める共通部分の個数 Nothing ならすべて含める
+           -> [a]         -- ^ 旧リスト
+           -> [a]         -- ^ 新リスト
+           -> EditPath    -- ^ 編集パス
+           -> [Diff a]    -- ^ 生成されたDiff
+pathToDiff Nothing oldlist newlist paths = [Diff 1 1 $ f oldlist newlist $ normalizeEditPath paths ]
     where
       f _ _ [] = []
-      f xs ys (Right cmn:paths') =
-          let (xs', xs'') = splitAt cmn xs
-              (_ ,  ys'') = splitAt cmn ys
-          in Right xs' :  f xs'' ys'' paths'
-      f xs ys (Left (del, ins):paths') =
-          let (xs', xs'') = splitAt del xs
-              (ys', ys'') = splitAt ins ys
-          in Left (xs', ys') : f xs'' ys'' paths'
+      f ys zs (x:xs)= let (d, i, ds) = case x of
+                                         Left (del, ins) -> (del, ins, Left (ys', zs'))
+                                         Right c         -> (c, c, Right ys')
+                          (ys', ys'') = splitAt d ys
+                          (zs', zs'') = splitAt i zs
+                       in ds : f ys'' zs'' xs
 
-pathToPatch (Just cl) oldlist newlist path = f1 path 1 oldlist 1 newlist
+pathToDiff (Just cl) oldlist newlist path = f0 oldlist newlist $ normalizeEditPath path
     where
-      collectCommon ((Right x):xs) = let (n, xs') = collectCommon xs in (n + x, xs')
-      collectCommon xs = (0, xs)
-      collectDifference ((Left (del, ins)):xs) = let (n, m, xs') = collectDifference xs in (n + del, m + ins, xs')
-      collectDifference xs = (0, 0, xs)
-      --
-      f1 :: EditPath -> Int -> [a] -> Int -> [a] -> [Patch a]
-      f1 [] _ _ _ _ = []
-      f1 xs yn ys zn zs =
-          let (ds, tc, n, m, xs'', ys'', zs'') = f0 xs' ys' (drop cmnlen zs)
-          in Patch (yn + cmnlen - cmnlen') (zn + cmnlen - cmnlen') (n + cmnlen' + tc) (m + cmnlen' + tc) (Right cmnlines : ds)
-                 : f1 xs'' (yn + n) ys'' (zn + m)  zs''
-         where
-           cmnlen' = max cmnlen (cmnlen - cl)
-           (cmnlen, xs') = collectCommon xs
-           (cmnlines, ys') = splitAt cmnlen ys
-      f0 :: EditPath -> [a] -> [a] -> ([Diff a], Int, Int, Int, EditPath, [a], [a])
-      f0 [] ys zs = ([], 0, 0, 0, [], ys, zs)
-      f0 xs ys  zs
-          | cmnlen <= cl * 2 = let (ds, tc, n, m, xs''', ys''', zs''') = f0 xs'' ys'' zs''
-                               in ((Left (dellines, inslines) : Right cmnlines : ds), tc, n + dellen + cmnlen, m + inslen + cmnlen, xs''', ys''', zs''')
-          | otherwise        = ([Left (dellines, inslines), Right tailcmn], length tailcmn, dellen, inslen, xs', ys', zs')
+      f0 _ _ [] = []
+      f0 _ _ (Right _:[]) = []
+      f0 xs ys zs@(Left _:_) = f1 (\ds -> [Diff 0 0 ds]) xs 0 ys 0 zs
+      f0 xs ys (Right c:zs) = f1 (\ds -> [Diff skip skip (Right (drop (c - cl) xs') : ds)] ) xs'' c (drop c ys) c zs
+          where (xs', xs'') = splitAt c xs
+                skip = c - cl
+      f1 prefix _ _ _ _ [] = prefix []
+      f1 prefix xs xn ys yn (Left (d, i) : zs) = f1 (prefix . (:) (Left (xs', ys'))) xs'' (xn + d) ys'' (yn + i) zs
           where
-            (dellen, inslen, xs') = collectDifference xs
-            (dellines, ys') = splitAt dellen ys
-            (inslines, zs') = splitAt inslen zs
-            (cmnlen, xs'') = collectCommon xs'
-            (cmnlines, ys'') = splitAt cmnlen ys'
-            zs'' = drop cmnlen zs'
-            tailcmn = take cl ys'
+            (xs', xs'') = splitAt d xs
+            (ys', ys'') = splitAt i ys
+      f1 prefix xs xn ys yn (Right c : zs)
+         | c <= cl * 2 = f1 (prefix . (:) (Right xs')) xs'' (xn + c) (drop c ys) (yn + c) zs
+         | null zs   = prefix [ Right $ take cl xs ]
+         | otherwise =
+             f1 (\ds -> prefix [Right $ take cl xs] ++ [Diff (xn + skip) (yn + skip) (Right (drop skip xs') : ds)]) xs'' (xn + c) (drop c ys) (yn + c) zs
+         where
+           (xs', xs'') = splitAt c xs
+           skip = c - cl
