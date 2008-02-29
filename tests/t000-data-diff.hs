@@ -1,6 +1,6 @@
 #! /usr/bin/env runhaskell
 --
--- tests/runtest.hs - Test module for diff algorithm collection
+-- tests/t000-data-diff.hs - Test module for diff algorithm collection
 --
 -- Copyright (C) 2008, Hiroki Hattori
 -- Licensed under BSD3, see COPYING
