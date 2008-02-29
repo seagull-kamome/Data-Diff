@@ -1,0 +1,17 @@
+--- a.txt
++++ b.txt
+@@ -1,11 +1,11 @@
+-Hello, World
++Hello,
+ 0
+ 1
+ 2
+ 3
++abcde
+ 4
+-5
+ 6
+ 7
+-8
++difference worlds.
+ 
