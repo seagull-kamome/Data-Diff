@@ -1,0 +1,3 @@
+
+* pathToDiff で、Just 0 が指定された時、各Diffの先頭に Right [] が入る
+
