@@ -23,6 +23,7 @@ module Data.Diff
      inverseHunk, pathToHunk, hunkNewList, hunkNewLength, hunkOldList, hunkOldLength,
      --
      inverseDiff, pathToDiff,
+     diffOldList, diffOldLength, diffNewList, diffNewLength,
     ) where
 --
 
@@ -244,3 +245,25 @@ pathToDiff (Just cl) oldlist newlist path = f0 oldlist newlist $ normalizeEditPa
          where
            (xs', xs'') = splitAt c xs
            skip = c - cl
+
+
+
+-- |
+diffOldList :: Diff a -> [a]
+diffOldList (Diff _ _ xs) = concatMap (either fst id) xs
+
+
+-- |
+diffOldLength :: Diff a -> Int
+diffOldLength (Diff _ _ xs) = sum $ map (length . either fst id) xs
+
+-- |
+diffNewList :: Diff a -> [a]
+diffNewList (Diff _ _ xs) = concatMap (either snd id) xs
+
+-- |
+diffNewLength :: Diff a -> Int
+diffNewLength (Diff _ _ xs) = sum $ map (length . either snd id) xs
+
+
+
