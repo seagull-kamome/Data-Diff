@@ -27,6 +27,7 @@ module Data.Diff
     ) where
 --
 
+import Data.List (mapAccumL)
 import Data.Either
 
 --
@@ -199,6 +200,7 @@ data Diff a = Diff {
     }
 
 deriving instance Show a => Show (Diff a)
+deriving instance Eq a => Eq (Diff a)
 
 
 -- | Diffを逆転する
@@ -214,15 +216,14 @@ pathToDiff :: Maybe Int   -- ^ 編集部分の前後に含める共通部分の�
            -> [a]         -- ^ 新リスト
            -> EditPath    -- ^ 編集パス
            -> [Diff a]    -- ^ 生成されたDiff
-pathToDiff Nothing oldlist newlist paths = [Diff 1 1 $ f oldlist newlist $ normalizeEditPath paths ]
+pathToDiff _ _ _ []    = []
+pathToDiff Nothing oldlist newlist paths = [Diff 1 1 $ snd $ mapAccumL f (oldlist, newlist) $ normalizeEditPath paths ]
     where
-      f _ _ [] = []
-      f ys zs (x:xs)= let (d, i, ds) = case x of
-                                         Left (del, ins) -> (del, ins, Left (ys', zs'))
-                                         Right c         -> (c, c, Right ys')
-                          (ys', ys'') = splitAt d ys
-                          (zs', zs'') = splitAt i zs
-                       in ds : f ys'' zs'' xs
+      f (ys, zs) = either
+                   (\(d, i) ->let (y, ys') = splitAt d ys
+                                  (z, zs') = splitAt i zs
+                              in ((ys', zs'), Left (y, z))  )
+                   (\c -> let (y, ys') = splitAt c ys in ((ys', drop c zs), Right (y)))
 
 pathToDiff (Just cl) oldlist newlist path = f0 oldlist newlist $ normalizeEditPath path
     where
