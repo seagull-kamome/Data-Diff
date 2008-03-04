@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -XStandaloneDeriving #-}
+{-# OPTIONS_GHC -XStandaloneDeriving -Wall #-}
 --
 -- Data/Diff.hs - Base module for diff algorithms
 --
@@ -20,7 +20,7 @@ module Data.Diff
      --
      inverseNode, inverseEditPath, normalizeEditPath,
      --
-     inverseHunk, pathToHunk, hunkNewList, hunkNewLength, hunkOldList, hunkOldLength,
+     inverseHunk, pathToHunk, hunkList, hunkNewList, hunkOldList,
      --
      inverseDiff, pathToDiff,
      diffOldList, diffOldLength, diffNewList, diffNewLength,
@@ -167,22 +167,17 @@ pathToHunk xs ys (Right cmn:path) = Right xs' : pathToHunk xs'' (drop cmn ys) pa
     where (xs', xs'') = splitAt cmn xs 
 
 
+-- |
+hunkList :: Hunk a -> ([a], [a])
+hunkList = either id (\x -> (x,x))
 
--- | Diffのリストから旧リストを取り出す
-hunkOldList :: [Hunk a] -> [a]
-hunkOldList = concatMap (either fst id)
+-- | Hunkのリストから旧リストを取り出す
+hunkOldList :: Hunk a -> [a]
+hunkOldList = either fst id
 
--- | Diffのリストから新リストを取り出す
-hunkNewList :: [Hunk a] -> [a]
-hunkNewList = concatMap (either snd id)
-
--- | Diffのリストから旧リストの長さを算出する
-hunkOldLength :: [Hunk a] -> Int
-hunkOldLength = sum . map (length . either fst id)
-
--- | Diffのリストから新リストの長さを算出する
-hunkNewLength :: [Hunk a] -> Int
-hunkNewLength = sum . map (length . either snd id)
+-- | Hunkのリストから新リストを取り出す
+hunkNewList :: Hunk a -> [a]
+hunkNewList = either snd id
 
 
 

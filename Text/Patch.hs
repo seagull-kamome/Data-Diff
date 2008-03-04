@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 --
 -- Text/Patch.hs - Patch file manipulation module
 --
@@ -12,12 +13,12 @@ module Text.Patch (
 
 import Control.Monad ((>=>))
 import Data.Maybe
-import Data.List (unfoldr, span, partition)
+import Data.List (span, partition)
 import IO
 import System.Directory (doesFileExist)
 import Text.Regex
 
-import qualified Data.Diff (Hunk, Diff (..), pathToDiff, hunkOldLength, hunkNewLength)
+import qualified Data.Diff (Hunk, Diff (..), pathToDiff, hunkOldList, hunkNewList)
 import qualified Data.Diff.Algorithm.ONP (genericDiff)
 
 
@@ -56,7 +57,8 @@ diffFile cmnlen oldfname newfname =
 -- | 差分を書式化する
 formatDiff :: Diff -> [String]
 formatDiff (Data.Diff.Diff n m hunks) =
-    (concat [ "@@ -", show $ n + 1, ",", show (Data.Diff.hunkOldLength hunks), " +", show $ m + 1, ",", show (Data.Diff.hunkNewLength hunks), " @@" ]) : (concatMap f' hunks)
+    (concat [ "@@ -", show $ n + 1, ",", show (sum $ map (length . Data.Diff.hunkOldList) hunks),
+                        " +", show $ m + 1, ",", show (sum $ map (length . Data.Diff.hunkNewList) hunks), " @@" ]) : (concatMap f' hunks)
     where
       f' x = case x of
                Right xs      -> map ((:) ' ') xs
@@ -75,20 +77,15 @@ readHunk xs | not $ null cmn = Just (Right (map tail cmn), xs')
 readDiff :: [String] -> Maybe (Diff, [String])
 readDiff [] = Nothing
 readDiff (x:xs') = matchRegex (mkRegex "^@@ -([0-9]+),([0-9]+) \\+([0-9]+),([0-9]+) @@$") x
-                    >>= return . map read
-                    >>= (\(h1:h2:h3:h4:[]) -> if oldlen == h2 && newlen == h4
-                                              then return (Data.Diff.Diff h1 h3 hunks, xs'')
-                                              else error "Hunk length missmatch")
+                   >>= return . map read
+                   >>= (\(h1:h2:h3:h4:[]) -> if oldlen == h2 && newlen == h4
+                                             then return (Data.Diff.Diff h1 h3 hunks, xs'')
+                                             else error "Hunk length missmatch")
     where (xs'', hunks') = readHunks xs' []
           hunks = reverse hunks'
-          oldlen = Data.Diff.hunkOldLength hunks
-          newlen = Data.Diff.hunkNewLength hunks
-          readHunks xs ys
-              | null xs        = (xs, ys)
-              | not $ null cmn = readHunks xs' $! Right (map tail cmn) : ys
-              | not $ null edt = readHunks xs'' $! Left ((map tail del), (map tail ins)) : ys
-              | otherwise      = (xs, ys)
-              where (cmn, xs') = span ((==) ' ' . head) xs
-                    (edt, xs'') = span (flip elem "+-" . head) xs'
-                    (ins, del) = partition ((==) '+' . head) edt
+          oldlen = sum $ map (length . Data.Diff.hunkOldList) hunks
+          newlen = sum $ map (length . Data.Diff.hunkNewList) hunks
+          readHunks xs ys = case readHunk xs of
+                              Nothing         -> (xs, ys)
+                              Just (hnk, xs''') -> readHunks xs''' $! hnk : ys
 
