@@ -19,7 +19,8 @@ main = runTestTT tests >> return ()
                "O(NM) diff" ~: testEditPath ONM.diff,
                "O(NP) diff" ~: testEditPath ONP.diff,
                "O(NP) hunk" ~: testHunk ONP.diff,
-               "O(NP) genDiff" ~: testDiff ONP.diff
+               "O(NP) genDiff" ~: testDiff ONP.diff,
+               "patch" ~: testPatch
               ]
       testEditPath diff =
           [
@@ -35,13 +36,18 @@ main = runTestTT tests >> return ()
           where diff' x y z = (x ++ " -> " ++ y ) ~: diff x y ~?= z
       testHunk diff =
           [
-           (hunkNewList $ pathToHunk xs ys $ diff xs ys) ~?= ys,
-           (hunkOldList $ pathToHunk xs ys $ diff xs ys) ~?= xs
+           (concatMap hunkNewList $ pathToHunk xs ys $ diff xs ys) ~?= ys,
+           (concatMap hunkOldList $ pathToHunk xs ys $ diff xs ys) ~?= xs
           ]
       xs = "The quick blown fox jumps over the lazy dog."
-      ys = "The lazy black compiler jump over the function."
+      ys = "The lazy broken compiler jumps over the function."
       testDiff diff =
           [
-           (pathToDiff (Just 1) xs ys $ diff xs ys) ~?= [Diff {diffOldIndex = 3, diffNewIndex = 3, diffDiff = [Right " ",Left ("quick","lazy"),Right " "]},Diff {diffOldIndex = 11, diffNewIndex = 10, diffDiff = [Right "l",Left ("own","ack"),Right " ",Left ("f","c"),Right "o",Left ("x","mpiler"),Right " "]},Diff {diffOldIndex = 23, diffNewIndex = 27, diffDiff = [Right "p",Left ("s",""),Right " "]},Diff {diffOldIndex = 34, diffNewIndex = 37, diffDiff = [Right " ",Left ("lazy d","functi"),Right "o",Left ("g","n"),Right "."]}],
-           (pathToDiff (Just 0) xs ys $ diff xs ys) ~?= [Diff {diffOldIndex = 4, diffNewIndex = 4, diffDiff = [Left ("quick","lazy")]},Diff {diffOldIndex = 12, diffNewIndex = 11, diffDiff = [Left ("own","ack")]},Diff {diffOldIndex = 16, diffNewIndex = 15, diffDiff = [Left ("f","c")]},Diff {diffOldIndex = 18, diffNewIndex = 17, diffDiff = [Left ("x","mpiler")]},Diff {diffOldIndex = 24, diffNewIndex = 28, diffDiff = [Left ("s","")]},Diff {diffOldIndex = 35, diffNewIndex = 38, diffDiff = [Left ("lazy d","functi")]},Diff {diffOldIndex = 42, diffNewIndex = 45, diffDiff = [Left ("g","n")]}]
+           (pathToDiff (Just 1) xs ys $ diff xs ys) ~?= [Diff {diffOldIndex = 3, diffNewIndex = 3, diffDiff = [Right " ",Left ("quick","lazy"),Right " b",Left ("l","r"),Right "o",Left ("w","ke"),Right "n ",Left ("f","c"),Right "o",Left ("x","mpiler"),Right " "]},Diff {diffOldIndex = 34, diffNewIndex = 39, diffDiff = [Right " ",Left ("lazy d","functi"),Right "o",Left ("g","n"),Right "."]}],
+           (pathToDiff (Just 0) xs ys $ diff xs ys) ~?= [Diff {diffOldIndex = 4, diffNewIndex = 4, diffDiff = [Right "",Left ("quick","lazy"),Right ""]},Diff {diffOldIndex = 11, diffNewIndex = 10, diffDiff = [Right "",Left ("l","r"),Right ""]},Diff {diffOldIndex = 13, diffNewIndex = 12, diffDiff = [Right "",Left ("w","ke"),Right ""]},Diff {diffOldIndex = 16, diffNewIndex = 16, diffDiff = [Right "",Left ("f","c"),Right ""]},Diff {diffOldIndex = 18, diffNewIndex = 18, diffDiff = [Right "",Left ("x","mpiler"),Right ""]},Diff {diffOldIndex = 35, diffNewIndex = 40, diffDiff = [Right "",Left ("lazy d","functi"),Right ""]},Diff {diffOldIndex = 42, diffNewIndex = 47, diffDiff = [Right "",Left ("g","n"),Right ""]}]
           ]
+      testPatch =
+          [
+           patch (pathToDiff (Just 2) xs ys $ ONP.diff xs ys) xs ~?= ys
+          ]
+

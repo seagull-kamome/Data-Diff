@@ -24,10 +24,12 @@ module Data.Diff
      --
      inverseDiff, pathToDiff,
      diffOldList, diffOldLength, diffNewList, diffNewLength,
+     --
+     patch,
     ) where
 --
 
-import Data.List (mapAccumL)
+import Data.List (mapAccumL, isPrefixOf)
 import Data.Either
 
 --
@@ -263,3 +265,17 @@ diffNewLength (Diff _ _ xs) = sum $ map (length . either snd id) xs
 
 
 
+-- |
+patch :: Eq a => [Diff a] -> [a] -> [a]
+patch diff oldlist = patch' diff oldlist 0
+    where
+      patch' [] ys _ = ys
+      patch' (x@(Diff oi _ _):xs) ys n
+          | oi < n                  = error "patch: error. oi < n"
+          | isPrefixOf oldchunk ys' = skiped ++ newchunk ++ patch' xs (drop oldlen ys') (oi + oldlen)
+          | otherwise               = error "patch: error. prefix unmatch."
+          where
+            (skiped, ys') = splitAt (oi - n) ys
+            oldchunk = diffOldList x
+            oldlen  = length oldchunk
+            newchunk = diffNewList x
